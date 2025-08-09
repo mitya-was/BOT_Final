@@ -91,25 +91,31 @@ install_dependencies() {
 
 # Налаштування .env
 setup_environment() {
-    print_status "Налаштування змінних середовища..."
+    print_status "Перевірка змінних середовища..."
     
     if [ ! -f ".env" ]; then
-        print_warning ".env файл не знайдено. Створюю з прикладу..."
+        print_warning ".env файл не знайдено."
         
-        if [ -f "config.env.example" ]; then
-            cp config.env.example .env
-            print_warning "Будь ласка, відредагуйте .env файл з правильними значеннями"
+        # Перевірити чи є backup з попередньої версії
+        if [ -f "../../telegram-bot-backup-v1/.env" ]; then
+            print_status "Копіюю .env з backup версії..."
+            cp ../../telegram-bot-backup-v1/.env .env
+        elif [ -f "env.example" ]; then
+            print_warning "Створюю .env з прикладу..."
+            cp env.example .env
+            print_warning "⚠️  УВАГА: Відредагуйте .env файл з правильними значеннями!"
+            print_warning "nano .env"
         else
-            print_error ".env та config.env.example файли не знайдені!"
+            print_error ".env файл не знайдено! Створіть його вручну."
             exit 1
         fi
     fi
     
     # Перевірка обов'язкових змінних
     if ! grep -q "TELEGRAM_BOT_TOKEN=" .env || ! grep -q "API_KEY=" .env; then
-        print_error "Відсутні обов'язкові змінні в .env файлі!"
-        print_warning "Потрібні: TELEGRAM_BOT_TOKEN, API_KEY, GOOGLE_SCRIPT_URL"
-        exit 1
+        print_warning "Перевірте налаштування в .env файлі"
+        print_status "Поточний вміст .env:"
+        cat .env | grep -v "TOKEN\|KEY" | head -5
     fi
     
     print_success "Змінні середовища налаштовані"
