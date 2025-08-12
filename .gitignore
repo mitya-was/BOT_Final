@@ -1,0 +1,8 @@
+.env
+node_modules/
+logs/
+.tmp/
+.DS_Store
+npm-debug.log*
+# Docker artifacts (not the definitions)
+**/.local/

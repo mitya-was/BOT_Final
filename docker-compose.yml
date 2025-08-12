@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  contract-bot:
+    build: .
+    container_name: contract-bot
+    restart: unless-stopped
+    env_file: .env
+    # healthcheck pings GAS health endpoint when URL present; otherwise checks local healthz
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"(async()=>{try{require('dotenv').config();const a=require('axios');if(process.env.GOOGLE_SCRIPT_URL){const u=process.env.GOOGLE_SCRIPT_URL+(process.env.GOOGLE_SCRIPT_URL.includes('?')?'&':'?')+'action=health&key='+process.env.API_KEY;const r=await a.get(u,{timeout:5000});if(!(r.data&&r.data.ok))process.exit(1);}else{const r=await a.get('http://127.0.0.1:'+(process.env.WEBHOOK_PORT||3000)+'/healthz',{timeout:2000}).catch(()=>({status:500}));if(r.status!==200)process.exit(1);}process.exit(0);}catch(e){process.exit(1)}})()\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - default
+      # подключим traefik edge сеть опционально, если нужен webhook
+      - edge
+    labels:
+      - traefik.enable=${WEBHOOK_DOMAIN:+true}
+      - traefik.docker.network=edge
+      - traefik.http.routers.contract-bot.rule=Host(`${WEBHOOK_DOMAIN}`) && (PathPrefix(`${WEBHOOK_PATH:-/telegram/webhook}`) || PathPrefix(`/healthz`))
+      - traefik.http.routers.contract-bot.entrypoints=websecure
+      - traefik.http.routers.contract-bot.tls.certresolver=le
+      - traefik.http.services.contract-bot.loadbalancer.server.port=${WEBHOOK_PORT:-3000}
+      - traefik.http.routers.contract-bot.middlewares=sec-headers@file,sec-ratelimit@file
+
+networks:
+  default:
+    name: contract-bot_default
+  edge:
+    external: true
